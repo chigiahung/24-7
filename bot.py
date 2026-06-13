@@ -1,38 +1,50 @@
 import os
 import asyncio
 import discord
+from http.server import BaseHTTPRequestHandler, HTTPServer
+import threading
 
-# Thay ID phòng Voice của bạn vào đây (Ví dụ: 123456789012345678)
-VOICE_CHANNEL_ID = 1211650562148401173  
+# 1. TẠO WEB SERVER ẢO ĐỂ TRÁNH LỖI VERCEL/WASMER
+class HealthCheckHandler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header("Content-type", "text/plain; charset=utf-8")
+        self.end_headers()
+        self.wfile.write("Bot vẫn đang sống nhăn răng 24/7!".encode("utf-8"))
+
+def run_web_server():
+    # Vercel/Wasmer luôn cấp một cổng PORT trong biến môi trường
+    port = int(os.getenv("PORT", 8080))
+    server = HTTPServer(("0.0.0.0", port), HealthCheckHandler)
+    print(f"🌍 Web Server ảo đang chạy tại port: {port}")
+    server.serve_forever()
+
+# 2. CẤU HÌNH BOT DISCORD TREO VOICE
+VOICE_CHANNEL_ID = 1211650562148401173  # ⚠️ THAY ID PHÒNG VOICE CỦA BẠN VÀO ĐÂY!
 
 class VoiceBot(discord.Client):
-    def __init__( self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
     async def on_ready(self):
-        print(f"Bot {self.user} đã online!")
-        
-        # Lấy thông tin phòng Voice bằng ID
+        print(f"🤖 Bot {self.user} đã online thành công!")
         channel = self.get_channel(VOICE_CHANNEL_ID)
         
         if channel and isinstance(channel, discord.VoiceChannel):
             try:
-                # Tiến hành kết nối vào phòng voice
                 vc = await channel.connect()
-                print(f" Đã kết nối thành công vào phòng voice: {channel.name}")
-                
-                # Tùy chọn: Giúp bot tự treo câm/điếc nếu bạn muốn tiết kiệm băng thông
-                # await vc.main_mick_status(mute=True, deafen=True) 
-                
+                print(f"🔊 Đã nhảy vào phòng voice: {channel.name}")
             except Exception as e:
-                print(f"❌ Lỗi khi kết nối vào phòng voice: {e}")
+                print(f"❌ Lỗi kết nối Voice: {e}")
         else:
-            print("❌ Không tìm thấy phòng Voice. Hãy kiểm tra lại ID phòng!")
+            print("❌ Không tìm thấy ID phòng Voice hợp lệ!")
 
-# Khởi tạo bot với Intents cần thiết
-intents = discord.Intents.default()
-client = VoiceBot(intents=intents)
+# 3. KHỞI CHẠY SONG SONG CẢ HAI
+if __name__ == "__main__":
+    # Chạy Web Server ở một luồng riêng để không làm nghẹt mạng của Bot
+    web_thread = threading.Thread(target=run_web_server, daemon=True)
+    web_thread.start()
 
-# Lấy token từ biến môi trường của Wasmer
-TOKEN = os.getenv("DISCORD_TOKEN")
-client.run(TOKEN)
+    # Chạy Bot Discord
+    intents = discord.Intents.default()
+    client = VoiceBot(intents=intents)
+    
+    TOKEN = os.getenv("DISCORD_TOKEN")
+    client.run(TOKEN)
