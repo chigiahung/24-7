@@ -25,10 +25,14 @@ VOICE_CHANNEL_ID = int(os.getenv("VOICE_CHANNEL_ID", "0"))
 class VoiceBot(discord.Client):
     async def on_ready(self):
         print(f"🤖 Bot {self.user} đã online thành công!")
-        channel = self.get_channel(VOICE_CHANNEL_ID)
+        await self.join_voice()
 
+    async def join_voice(self):
+        channel = self.get_channel(VOICE_CHANNEL_ID)
         if channel and isinstance(channel, discord.VoiceChannel):
             try:
+                if channel.guild.voice_client:
+                    await channel.guild.voice_client.disconnect()
                 vc = await channel.connect()
                 print(f"🔊 Đã nhảy vào phòng voice: {channel.name}")
             except Exception as e:
@@ -36,11 +40,18 @@ class VoiceBot(discord.Client):
         else:
             print("❌ Không tìm thấy ID phòng Voice hợp lệ!")
 
+    async def on_voice_state_update(self, member, before, after):
+        if member == self.user and after.channel is None:
+            print("⚠️ Bot bị văng khỏi voice, đang reconnect...")
+            await asyncio.sleep(3)
+            await self.join_voice()
+
 if __name__ == "__main__":
     web_thread = threading.Thread(target=run_web_server, daemon=True)
     web_thread.start()
 
     intents = discord.Intents.default()
+    intents.voice_states = True
     client = VoiceBot(intents=intents)
 
     TOKEN = os.getenv("DISCORD_TOKEN")
