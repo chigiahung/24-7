@@ -1,6 +1,7 @@
 import os
 import asyncio
 import discord
+import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import threading
 
@@ -21,10 +22,21 @@ def run_web_server():
     server.serve_forever()
 
 VOICE_CHANNEL_ID = int(os.getenv("VOICE_CHANNEL_ID", "0"))
+ACTIVITY_START_HOURS_AGO = int(os.getenv("ACTIVITY_START_HOURS", "384"))
 
 class VoiceBot(discord.Client):
     async def on_ready(self):
         print(f"🤖 Bot {self.user} đã online thành công!")
+
+        start_time = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=ACTIVITY_START_HOURS_AGO)
+        activity = discord.Activity(
+            type=discord.ActivityType.listening,
+            name="Hung.ai",
+            start=start_time
+        )
+        await self.change_presence(activity=activity)
+        print(f"🎵 Đã set activity: Listening to Hung.ai ({ACTIVITY_START_HOURS_AGO}h elapsed)")
+
         await self.join_voice()
 
     async def join_voice(self):
